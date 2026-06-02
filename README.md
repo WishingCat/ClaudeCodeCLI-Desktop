@@ -1,97 +1,143 @@
-# CCDesktop
+# AI CLI Desktop Launchers
 
-A clickable macOS launcher for [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/overview).
+Clickable macOS launchers for terminal-based AI coding agents. Double-click an app in Finder (or pin it to the Dock) and a Terminal window opens straight into the agent, working directory set to your Desktop. No more `cmd+space → Terminal → type the command`.
 
-Double-click `CCDesktop.app` in Finder (or pin it to the Dock) and a Terminal window opens straight into Claude Code, with the working directory set to your Desktop. No more `cmd+space → Terminal → claude`.
+| App | Launches | Icon |
+| --- | --- | --- |
+| `CCDesktop.app` | [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/overview) — `claude --dangerously-skip-permissions` | default applet |
+| `CodexDesktop.app` | [Codex CLI](https://github.com/openai/codex) — `codex --yolo` | 🐱 (`assets/codex-icon-source.jpg`) |
 
 ## How it works
 
-Three thin layers — that's the whole project:
+Each app is the same three thin layers — an AppleScript applet that opens a `.command` file, which `cd`s somewhere and `exec`s the agent binary:
 
 ```
-CCDesktop.app  (AppleScript applet)
+<App>.app  (AppleScript applet)
       │
-      ▼  do shell script "open ~/.claude_launcher.command"
+      ▼  do shell script "open ~/.<agent>_launcher.command"
       │
-~/.claude_launcher.command  (zsh script)
+~/.<agent>_launcher.command  (zsh script)
       │
-      ▼  cd ~/Desktop && exec claude --dangerously-skip-permissions
+      ▼  cd ~/Desktop && exec <agent> <flags>
       │
-   claude CLI
+   agent CLI takes over the Terminal window
 ```
 
-1. `CCDesktop.app/Contents/Resources/Scripts/main.scpt` — a one-line AppleScript that runs `open` on the launcher command file.
-2. `~/.claude_launcher.command` — a shebanged zsh script Finder treats as executable. It `cd`s into a working directory and `exec`s the `claude` binary.
-3. The `claude` CLI takes over the Terminal window.
+The applet is intentionally dumb — it only opens the `.command` file. All the real configuration lives in the launcher script in your home directory, so you can tweak flags, working directory, or env vars without ever recompiling the `.app`.
 
-The launcher passes `--dangerously-skip-permissions`, which skips Claude Code's per-tool permission prompts. **Only keep that flag if you understand what it means** — see the security note below.
+---
 
-## Installation
+## CodexDesktop
 
-### Prerequisites
+Double-click `CodexDesktop.app` → Terminal opens on your Desktop running `codex --yolo`.
 
-- macOS
-- [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/setup) installed and on your `$PATH`
+> `--yolo` is Codex's alias for `--dangerously-bypass-approvals-and-sandbox`: **no approval prompts and no sandbox**. Every model-generated command runs immediately with your full user privileges. Only use it on a machine and in a directory you trust. To keep guardrails, drop the flag (or use `--ask-for-approval`) in the launcher.
 
-### Steps
+### A wrinkle: `codex` is a shell wrapper, not a bare binary
 
-1. Clone this repo somewhere convenient:
-   ```sh
-   git clone https://github.com/WishingCat/ClaudeCodeCLI-Desktop.git
-   cd ClaudeCodeCLI-Desktop
-   ```
+On the machine this was built for, `codex` is not a plain executable — `~/.zshrc` defines a wrapper function that points Codex at a third-party (mindracode) endpoint:
 
-2. Install the launcher script into your home directory:
-   ```sh
-   cp claude_launcher.command ~/.claude_launcher.command
-   chmod +x ~/.claude_launcher.command
-   ```
+```zsh
+codex() { CODEX_HOME="$HOME/.codex-cli" MINDRA_API_KEY="<secret>" command codex "$@"; }
+```
 
-3. Open `~/.claude_launcher.command` and adjust the two paths to match your machine:
-   - Working directory (default `~/Desktop`)
-   - Full path to the `claude` binary (run `which claude` to find it)
+A double-clicked `.command` runs a **non-interactive** shell, which does **not** source `~/.zshrc`, so that wrapper (and its env vars) wouldn't be available. The launcher therefore reproduces what the wrapper does:
 
-4. **The bundled `CCDesktop.app` has my username hardcoded** (`/Users/wishingcat/.claude_launcher.command`). You have two options:
+```zsh
+cd "$HOME/Desktop"
+export CODEX_HOME="$HOME/.codex-cli"
+export MINDRA_API_KEY="$(sed -n 's/.*MINDRA_API_KEY="\([^"]*\)".*/\1/p' "$HOME/.zshrc" | head -1)"
+exec /opt/homebrew/bin/codex --yolo
+```
 
-   **Option A — rebuild the app for your own user (recommended).** From this repo's directory:
-   ```sh
-   rm -rf CCDesktop.app
-   osacompile -o CCDesktop.app -e 'do shell script "open ~/.claude_launcher.command"'
-   ```
-   The `~` is expanded by the shell that AppleScript invokes, so the new bundle works for any user.
+**No API key is stored in this repo.** The launcher reads the key out of your `~/.zshrc` wrapper at launch time, so the secret lives in exactly one place on your machine and survives key rotation. If you *don't* use the `.zshrc` wrapper, replace that line with a plain `export MINDRA_API_KEY="<your-key>"` (or remove both env lines entirely if you run vanilla Codex against your own ChatGPT/OpenAI auth).
 
-   **Option B — patch in place.** Edit the existing AppleScript without recompiling the bundle:
-   ```sh
-   osacompile -o CCDesktop.app/Contents/Resources/Scripts/main.scpt \
-     -e 'do shell script "open ~/.claude_launcher.command"'
-   ```
+### Install
 
-5. (Optional) Drag `CCDesktop.app` to `/Applications` and pin it to the Dock.
+```sh
+git clone https://github.com/WishingCat/ClaudeCodeCLI-Desktop.git
+cd ClaudeCodeCLI-Desktop
 
-That's it — clicking the app should now drop you into a Claude Code session.
+cp codex_launcher.command ~/.codex_launcher.command
+chmod +x ~/.codex_launcher.command
+```
 
-## Customizing
+Then open `~/.codex_launcher.command` and check the two machine-specific bits:
 
-Edit `~/.claude_launcher.command` to taste:
+- the path to the real `codex` binary (default `/opt/homebrew/bin/codex` — Apple-silicon Homebrew install)
+- how `MINDRA_API_KEY` / `CODEX_HOME` are sourced (see above)
 
-- **Change the working directory** — replace `~/Desktop` with whichever folder you want Claude Code to open in.
-- **Drop the `--dangerously-skip-permissions` flag** if you'd rather keep Claude Code's permission prompts on.
-- **Pass extra CLI flags** — `--model`, `--print`, etc.
-- **Add env vars** before the `exec`, e.g. `export ANTHROPIC_API_KEY=...`.
+Double-click `CodexDesktop.app`. The bundled app already uses a `~`-relative path, so it works for any user without recompiling.
 
-You don't need to touch the `.app` again after that — the applet just opens the command file, so any change to the script takes effect on the next launch.
+### Rebuilding the app (e.g. to change the icon or flags)
 
-## Security note
+The `.app` is a compiled AppleScript applet. To regenerate it from scratch:
 
-`--dangerously-skip-permissions` tells Claude Code to skip its built-in permission prompts. That means tools like `Bash`, `Edit`, and `Write` run without asking you first. It's convenient for solo workflows on machines you fully control, but it does mean a prompt-injected agent can take destructive actions silently. If you're not sure, **remove the flag** from `~/.claude_launcher.command` and let Claude Code ask.
+```sh
+# 1) compile the applet (portable ~ path)
+rm -rf CodexDesktop.app
+osacompile -o CodexDesktop.app -e 'do shell script "open ~/.codex_launcher.command"'
+
+# 2) build a .icns from any square-ish image and swap it in
+#    (forces real PNG encoding so iconutil accepts the frames)
+SRC=assets/codex-icon-source.jpg
+TMP=$(mktemp -d); ICON=$TMP/icon.iconset; mkdir -p "$ICON"
+sips -s format png -c 1062 1062 "$SRC" --out "$TMP/sq.png"
+for s in 16 32 128 256 512; do
+  sips -s format png -z $s        $s        "$TMP/sq.png" --out "$ICON/icon_${s}x${s}.png"
+  sips -s format png -z $((s*2))  $((s*2))  "$TMP/sq.png" --out "$ICON/icon_${s}x${s}@2x.png"
+done
+sips -s format png -z 1024 1024 "$TMP/sq.png" --out "$ICON/icon_512x512@2x.png"
+iconutil -c icns "$ICON" -o CodexDesktop.app/Contents/Resources/applet.icns
+
+# 3) modern osacompile also drops an asset-catalog icon that overrides the .icns —
+#    remove it so the classic .icns path wins, then re-sign ad-hoc
+/usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" CodexDesktop.app/Contents/Info.plist 2>/dev/null
+rm -f CodexDesktop.app/Contents/Resources/Assets.car
+codesign --force --deep -s - CodexDesktop.app
+```
+
+---
+
+## CCDesktop
+
+Double-click `CCDesktop.app` → Terminal opens on your Desktop running `claude --dangerously-skip-permissions`.
+
+> `--dangerously-skip-permissions` skips Claude Code's per-tool permission prompts — `Bash`, `Edit`, `Write`, etc. run without asking. Convenient on a machine you fully control; remove the flag from the launcher if you'd rather keep the prompts.
+
+### Install
+
+```sh
+cp claude_launcher.command ~/.claude_launcher.command
+chmod +x ~/.claude_launcher.command
+```
+
+Open `~/.claude_launcher.command` and set the working directory and the full path to your `claude` binary (`which claude`).
+
+**Heads-up:** the bundled `CCDesktop.app` has an absolute path baked in (`/Users/wishingcat/.claude_launcher.command`). To make it portable for your own user, recompile it the same way as CodexDesktop:
+
+```sh
+rm -rf CCDesktop.app
+osacompile -o CCDesktop.app -e 'do shell script "open ~/.claude_launcher.command"'
+```
+
+---
 
 ## Repo contents
 
 | Path | Purpose |
 | --- | --- |
-| `CCDesktop.app/` | The compiled AppleScript applet bundle. Uses absolute path; see install step 4. |
-| `claude_launcher.command` | Template launcher script — copy to `~/.claude_launcher.command`. |
-| `README.md` | This file. |
+| `CodexDesktop.app/` | Compiled applet → `~/.codex_launcher.command`. Portable `~` path, cat icon. |
+| `CCDesktop.app/` | Compiled applet → `~/.claude_launcher.command`. Absolute path; see note above. |
+| `codex_launcher.command` | Template launcher for Codex — copy to `~/.codex_launcher.command`. Contains **no secret**. |
+| `claude_launcher.command` | Template launcher for Claude Code — copy to `~/.claude_launcher.command`. |
+| `assets/codex.icns` | Built icon for CodexDesktop. |
+| `assets/codex-icon-source.jpg` | Source image the icon was generated from. |
+
+## Security notes
+
+- These launchers run their agents with the safety flags **off** (`--yolo`, `--dangerously-skip-permissions`) for a frictionless one-click flow. That trades away the prompts/sandbox that would otherwise catch a destructive or prompt-injected action. Use only where you trust the working directory, and drop the flags if you want the guardrails back.
+- No API keys are committed. `CodexDesktop` reads its key from your local `~/.zshrc` at launch; nothing secret lives in this repo.
 
 ## License
 
