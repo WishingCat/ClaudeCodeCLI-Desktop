@@ -12,7 +12,7 @@ cd "$HOME/Desktop"
 # Greeting shown the moment the app opens. Codex's full-screen TUI takes over
 # the terminal on launch (alternate screen), so we pause briefly to let the
 # message be read before Codex clears the screen.
-print -P "%F{cyan}你好～ 我是一只小 Codex%f"
+print -P "%F{cyan}你好～ 我是一只小 Codex ⌯oᴗ<⌯ಣ %f"
 sleep 1.5
 
 # Codex CLI config/state lives here (third-party mindracode profile).
