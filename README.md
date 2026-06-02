@@ -4,7 +4,7 @@ Clickable macOS launchers for terminal-based AI coding agents. Double-click an a
 
 | App | Launches | Icon |
 | --- | --- | --- |
-| `一只小 CC.app` | [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/overview) — `claude --dangerously-skip-permissions` | default applet |
+| `一只小CC.app` | [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/overview) — `claude --dangerously-skip-permissions` | default applet |
 | `一只小Codex.app` | [Codex CLI](https://github.com/openai/codex) — `codex --yolo` | 🐱 (`assets/codex-icon-source.jpg`) |
 
 ## How it works
@@ -106,9 +106,9 @@ codesign --force --deep -s - "一只小Codex.app"
 
 ---
 
-## 一只小 CC
+## 一只小CC
 
-Double-click `一只小 CC.app` → Terminal opens on your Desktop running `claude --dangerously-skip-permissions`.
+Double-click `一只小CC.app` → Terminal opens on your Desktop running `claude --dangerously-skip-permissions`.
 
 > `--dangerously-skip-permissions` skips Claude Code's per-tool permission prompts — `Bash`, `Edit`, `Write`, etc. run without asking. Convenient on a machine you fully control; remove the flag from the launcher if you'd rather keep the prompts.
 
@@ -121,11 +121,11 @@ chmod +x ~/.claude_launcher.command
 
 Open `~/.claude_launcher.command` and set the working directory and the full path to your `claude` binary (`which claude`).
 
-**Heads-up:** the bundled `一只小 CC.app` has an absolute path baked in (`/Users/wishingcat/.claude_launcher.command`). To make it portable for your own user, recompile it the same way as 一只小Codex:
+**Heads-up:** the bundled `一只小CC.app` has an absolute path baked in (`/Users/wishingcat/.claude_launcher.command`). To make it portable for your own user, recompile it the same way as 一只小Codex:
 
 ```sh
-rm -rf "一只小 CC.app"
-osacompile -o "一只小 CC.app" -e 'do shell script "open ~/.claude_launcher.command"'
+rm -rf "一只小CC.app"
+osacompile -o "一只小CC.app" -e 'do shell script "open ~/.claude_launcher.command"'
 ```
 
 ---
@@ -135,7 +135,7 @@ osacompile -o "一只小 CC.app" -e 'do shell script "open ~/.claude_launcher.co
 | Path | Purpose |
 | --- | --- |
 | `一只小Codex.app/` | Compiled applet → `~/.codex_launcher.command`. Portable `~` path, cat icon. |
-| `一只小 CC.app/` | Compiled applet → `~/.claude_launcher.command`. Absolute path; see note above. |
+| `一只小CC.app/` | Compiled applet → `~/.claude_launcher.command`. Absolute path; see note above. |
 | `codex_launcher.command` | Template launcher for Codex — copy to `~/.codex_launcher.command`. Greets, then runs `codex --yolo`. Contains **no secret**. |
 | `claude_launcher.command` | Template launcher for Claude Code — copy to `~/.claude_launcher.command`. |
 | `assets/codex.icns` | Built icon for 一只小Codex. |
