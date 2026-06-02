@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Launcher for CodexDesktop.app — opens a Terminal straight into `codex --yolo`.
+# Launcher for 一只小Codex.app — opens a Terminal straight into `codex --yolo`.
 # Install at: ~/.codex_launcher.command   (and: chmod +x ~/.codex_launcher.command)
 #
 # On this machine `codex` is NOT a plain binary: ~/.zshrc defines a wrapper
@@ -8,6 +8,12 @@
 # shell, which does not source ~/.zshrc, so we reproduce that wrapper here.
 
 cd "$HOME/Desktop"
+
+# Greeting shown the moment the app opens. Codex's full-screen TUI takes over
+# the terminal on launch (alternate screen), so we pause briefly to let the
+# message be read before Codex clears the screen.
+print -P "%F{cyan}你好～ 我是一只小 Codex%f"
+sleep 1.5
 
 # Codex CLI config/state lives here (third-party mindracode profile).
 export CODEX_HOME="$HOME/.codex-cli"
